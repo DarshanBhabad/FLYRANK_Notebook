@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Ranking Refresh Opportunities — Capstone Paper</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; max-width: 900px; margin: 40px auto; line-height: 1.6; padding: 0 20px; }
+      h1,h2,h3 { color: #111827 }
+      pre { background:#f6f8fa; padding:12px; border-radius:6px }
+      .footer { margin-top:40px; font-size:0.9em; color:#555 }
+    </style>
+  </head>
+  <body>
+    <article>
+      <h1>Ranking Refresh Opportunities — Capstone Paper</h1>
+
+      <h2>Abstract</h2>
+      <p>This project builds a practical ranked review engine that helps editors prioritize which content pages to review for refresh or metadata fixes. Using the FlyRank internship starter dataset (30,000 anonymized content rows) I frame the decision, build a transparent baseline score, and compare simple learned models to the rule baseline. The best models and the rule are validated with client-aware splits and top-K metrics (precision@K) so the output maps directly to an editor's capacity. The repo contains reproducible notebooks and the ranked action queue; a public-safe playbook turns model outputs into human review actions.</p>
+
+      <h2>Introduction / Problem statement</h2>
+      <p>Decision supported: which pages should a content editor review first (refresh, title/meta rewrite, monitor, or prune) given limited review capacity. The actor is the content/editor team; the action is a human review and targeted update. A wrong recommendation wastes editorial time (false positives) or misses high-impact pages (false negatives). The goal is a ranked queue that maximizes precision@K for the top pages the team can realistically review.</p>
+
+      <h2>Data</h2>
+      <ul>
+        <li>Starter slice used here: <code>data/raw/content_refresh_anonymized.csv</code> (30,000 rows × 44 columns). This public starter snapshot is included in the repository. The full warehouse release is <code>FlyRank/internship-warehouse</code> on Hugging Face (gated).</li>
+        <li>Date windows and tables used: starter CSV is a snapshot with trailing 90-day aggregates; full-work runs on <code>fact_content_daily_performance</code> partitioned by month for production-scale validation.</li>
+        <li>Exclusions: product decision flags and derived outputs like <code>priority_score</code> or <code>health_score</code> are excluded. <code>trend_direction</code> and <code>trend_pct</code> are not used as features because they are label-derived and cause leakage.</li>
+      </ul>
+
+      <h2>Methodology</h2>
+      <p>Lane chosen: Refresh / Content Opportunity Scoring — a ranked action queue with reason codes.</p>
+      <p>Features (examples used in the notebooks): <code>impressions_90d</code> (visibility), <code>ctr</code>, <code>avg_position</code>, <code>days_since_last_update</code> (freshness), <code>word_count</code>, <code>ai_sessions_90d</code> (sparse). Each feature is justified as knowable at decision time.</p>
+      <p>Label / proxy: the starter target is <code>is_declining_label</code> (derived from <code>trend_direction == 'down'</code>), used here for pipeline demonstration. For honest future-window prediction, build prior->future labels and enforce leakage control.</p>
+      <p>Baseline: a transparent rule-based baseline score (work/notebooks/w04_baseline_score.ipynb) combining visibility, freshness risk, and a position opportunity term into a single score with reason codes: <code>stale_visible_page</code>, <code>low_ctr_visible_page</code>, <code>monitor</code>.</p>
+      <p>Validation: client-holdout splits and precision@K for top-50/top-100 review cycles. The notebooks include leakage checks and a controlled demo showing how trend-derived fields leak the label.</p>
+
+      <h2>Results (summary)</h2>
+      <ul>
+        <li>Starter dataset: 30,000 rows; <code>is_declining_label</code> prevalence ≈ 54% (16,262 rows after prep).</li>
+        <li>Reference starter results: logistic regression ROC AUC ≈ 0.70, random forest ROC AUC ≈ 0.75 (see the repo outputs for exact numbers).</li>
+        <li>The rule baseline is computed in work/notebooks/w04_baseline_score.ipynb and a ranked CSV is written for reviewer inspection. Top-K reviews and manual checks are recorded in the notebooks.</li>
+      </ul>
+
+      <h2>Limitations & honest framing</h2>
+      <ul>
+        <li>Observational only: decision-support, not causal proof.</li>
+        <li>Unbalanced panel and GA4 availability differ by client; use per-client windows and volume filters.</li>
+        <li>AI referral signals are sparse; treat them as EDA/ranking only.</li>
+      </ul>
+
+      <h2>Ranked recommendations (action playbook)</h2>
+      <p>Output: a ranked CSV with <code>content_id, client_id, baseline_score, reason_code, action</code>. Reason codes: <code>stale_visible_page</code> (review_refresh), <code>low_ctr_visible_page</code> (review_ctr), <code>monitor</code>. Use precision@K to pick review capacity.</p>
+
+      <h2>Reproducibility</h2>
+      <p>Notebooks: work/notebooks/w01–w04 and supporting scripts. Run <code>python scripts/run_all.py</code> for the starter pipeline. Full-warehouse work requires HF_TOKEN and access to the gated Hugging Face dataset.</p>
+
+      <h2>Acknowledgments & data credit</h2>
+      <p>Built on the FlyRank ML Internship dataset — <a href="https://flyrank.ai" target="_blank">flyrank.ai</a></p>
+
+      <div class="footer">This paper and all code are public-safe: no client names, domains, raw URLs, private queries, or credentials are included.</div>
+    </article>
+  </body>
+</html>
